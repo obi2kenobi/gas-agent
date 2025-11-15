@@ -15,20 +15,41 @@ GAS-Agent is a comprehensive, AI-optimized documentation system for Google Apps 
 
 ### Key Features
 
+- ✅ **🎯 Intelligent Orchestrator** - Just describe your project, it handles everything!
 - ✅ **12 Specialist Roles** - Security Engineer, Platform Engineer, AI Integration Specialist, and more
 - ✅ **32 Deep Documentation Files** - Detailed implementation patterns across 9 categories
 - ✅ **18,600+ Lines** - Production-ready code examples and best practices
 - ✅ **Progressive Disclosure** - Load only what you need (150 lines overview → 400-800 lines deep)
 - ✅ **Context-Optimized** - Designed for efficient AI consumption with minimal token usage
 - ✅ **Battle-Tested Patterns** - OAuth2, caching, error handling, performance optimization
+- ✅ **Complete Guides** - Getting Started, Testing, Deployment, Troubleshooting
+- ✅ **Visual Diagrams** - Architecture, OAuth2 flows, system designs
 
 ---
 
 ## 🚀 Quick Start
 
-### Using in Claude Chat
+### ⭐ NEW: Using the Orchestrator (Recommended!)
 
-Simply reference the documentation you need in your conversations:
+**You don't need to know which specialist to use!** Just describe your project:
+
+```
+"I need to sync orders from Business Central to Google Sheets with OAuth2,
+caching, error handling, and monitoring"
+```
+
+The **Orchestrator** will:
+1. ✅ Analyze your requirements
+2. ✅ Select the right specialists automatically
+3. ✅ Generate a complete execution plan
+4. ✅ Implement the full solution with tests
+5. ✅ Validate everything works
+
+**Learn more**: [🎯 ORCHESTRATOR.md](docs/ORCHESTRATOR.md)
+
+### Manual Specialist Selection
+
+If you prefer control, reference specific documentation:
 
 ```
 "Load GAS-Agent/docs/specialists/security-engineer.md and help me implement OAuth2 for Business Central API"
@@ -424,6 +445,67 @@ const order = fetchBCData(
 - ✅ Performance considerations documented
 - ✅ Security best practices applied
 - ✅ Real-world use cases covered
+
+---
+
+## 📚 New Resources & Guides
+
+### 🎯 Orchestrator
+**[ORCHESTRATOR.md](docs/ORCHESTRATOR.md)** - Intelligent project coordinator
+- Just describe your project, it handles everything
+- Automatic specialist selection
+- Complete execution plans
+- Built-in validation
+
+### 🚀 Getting Started
+**[Getting Started Guide](docs/getting-started/README.md)** - Complete onboarding
+- [Beginner Path](docs/getting-started/learning-paths/beginner.md) - 2-4 hours
+- [Intermediate Path](docs/getting-started/learning-paths/intermediate.md) - 1-2 days
+- [Advanced Path](docs/getting-started/learning-paths/advanced.md) - 3-5 days
+
+### 📦 Examples
+**[Examples Directory](examples/)** - Complete, runnable code
+- OAuth2 Business Central Integration
+- Sheets Database with Repository Pattern
+- Claude Document Processor
+- Performance Optimization Examples
+
+### 🧪 Testing
+**[Testing Guide](docs/testing/README.md)** - Comprehensive testing patterns
+- Test runner for GAS
+- Unit, integration, and E2E testing
+- Mocking strategies
+- Performance benchmarking
+
+### 🔧 Troubleshooting
+**[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
+- Authorization errors
+- Quota limits
+- OAuth2 problems
+- Performance issues
+- FAQ
+
+### 🚀 Deployment
+**[Deployment Guide](docs/deployment/README.md)** - CI/CD and deployment
+- clasp setup and workflow
+- GitHub Actions integration
+- Environment management
+- Rollback procedures
+
+### 📊 Visual Diagrams
+**[Diagrams](docs/diagrams/README.md)** - Architecture and flow diagrams
+- System architecture
+- OAuth2 flows
+- Data pipelines
+- Performance optimization
+- All in Mermaid format (GitHub-native)
+
+### 📐 Quality Standards
+**[Quality Standards](docs/quality-standards.md)** - Best practices
+- Code quality standards
+- Security requirements
+- Testing guidelines
+- Documentation standards
 
 ---
 
