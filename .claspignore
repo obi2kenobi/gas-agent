@@ -1,0 +1,44 @@
+# Ignore node modules
+node_modules/
+
+# Ignore git files
+.git/
+.gitignore
+
+# Ignore CI/CD
+.github/
+
+# Ignore documentation
+docs/
+*.md
+!appsscript.json
+
+# Ignore config examples
+.clasp.json.example
+.env.example
+
+# Ignore tests (optional - comment out if you want to deploy tests)
+**/*test*.gs
+**/*TEST*.gs
+**/*Test*.gs
+
+# Ignore backups
+backups/
+
+# Ignore logs
+*.log
+deployment-*.log
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore package files
+package.json
+package-lock.json

@@ -1,0 +1,44 @@
+{
+  "name": "gas-agent",
+  "version": "1.0.0",
+  "description": "Production-ready documentation and patterns for Google Apps Script development with Claude AI",
+  "main": "index.js",
+  "scripts": {
+    "deploy:dev": "clasp push --force",
+    "deploy:staging": "clasp push --force",
+    "deploy:prod": "bash .github/scripts/deploy.sh production",
+    "test": "echo 'Run tests in Google Apps Script editor'",
+    "lint": "bash .github/scripts/lint-gas.sh",
+    "security": "bash .github/scripts/security-scan.sh",
+    "backup": "bash .github/scripts/backup-prod.sh",
+    "rollback": "bash .github/scripts/rollback.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/obi2kenobi/gas-agent.git"
+  },
+  "keywords": [
+    "google-apps-script",
+    "gas",
+    "claude-ai",
+    "anthropic",
+    "automation",
+    "business-central",
+    "oauth2",
+    "sheets",
+    "drive",
+    "documentation"
+  ],
+  "author": "gas-Agent Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/obi2kenobi/gas-agent/issues"
+  },
+  "homepage": "https://github.com/obi2kenobi/gas-agent#readme",
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
