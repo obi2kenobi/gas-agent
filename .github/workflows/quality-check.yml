@@ -1,0 +1,212 @@
+name: Code Quality Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, 'claude/**' ]
+  workflow_dispatch:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Code complexity analysis
+        run: |
+          echo "📊 Analyzing code complexity..."
+
+          # Count total lines of code
+          TOTAL_LINES=$(find . -name "*.gs" -type f -exec wc -l {} \; | awk '{s+=$1} END {print s}')
+          echo "Total lines of code: $TOTAL_LINES"
+
+          # Count files
+          FILE_COUNT=$(find . -name "*.gs" -type f | wc -l)
+          echo "Total .gs files: $FILE_COUNT"
+
+          # Average lines per file
+          if [ $FILE_COUNT -gt 0 ]; then
+            AVG_LINES=$((TOTAL_LINES / FILE_COUNT))
+            echo "Average lines per file: $AVG_LINES"
+
+            if [ $AVG_LINES -gt 1000 ]; then
+              echo "⚠️  Warning: Average file size is large. Consider breaking down files."
+            fi
+          fi
+
+      - name: Check documentation coverage
+        run: |
+          echo "📚 Checking documentation..."
+
+          # Check for README files
+          README_COUNT=$(find . -name "README.md" -type f | wc -l)
+          echo "README files: $README_COUNT"
+
+          # Check for JSDoc comments in .gs files
+          TOTAL_FUNCTIONS=$(grep -r "^function " --include="*.gs" . | wc -l)
+          DOCUMENTED_FUNCTIONS=$(grep -r -B1 "^function " --include="*.gs" . | grep -c "^\s*/\*\*" || echo "0")
+
+          echo "Total functions: $TOTAL_FUNCTIONS"
+          echo "Documented functions: $DOCUMENTED_FUNCTIONS"
+
+          if [ $TOTAL_FUNCTIONS -gt 0 ]; then
+            DOC_COVERAGE=$((DOCUMENTED_FUNCTIONS * 100 / TOTAL_FUNCTIONS))
+            echo "Documentation coverage: ${DOC_COVERAGE}%"
+
+            if [ $DOC_COVERAGE -lt 50 ]; then
+              echo "⚠️  Warning: Low documentation coverage"
+            else
+              echo "✅ Good documentation coverage"
+            fi
+          fi
+
+      - name: Security checks
+        run: |
+          echo "🔐 Running security checks..."
+
+          # Check for hardcoded credentials
+          echo "Checking for hardcoded secrets..."
+          if grep -r -i -E "(password|secret|api[_-]?key|token)\s*=\s*['\"][^'\"]+['\"]" \
+            --include="*.gs" \
+            --exclude-dir=".git" \
+            --exclude="TEST.gs" .; then
+            echo "❌ Found potential hardcoded secrets!"
+            echo "⚠️  Please use PropertiesService for sensitive data"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets found"
+          fi
+
+          # Check for eval() usage
+          if grep -r "eval(" --include="*.gs" .; then
+            echo "⚠️  Warning: Found eval() usage - potential security risk"
+          else
+            echo "✅ No eval() usage found"
+          fi
+
+          # Check for PropertiesService usage
+          if grep -r "PropertiesService" --include="*.gs" . > /dev/null; then
+            echo "✅ PropertiesService is being used for configuration"
+          fi
+
+      - name: Code style checks
+        run: |
+          echo "🎨 Checking code style..."
+
+          # Check for console.log (should use Logger.log in GAS)
+          CONSOLE_LOGS=$(grep -r "console\.log" --include="*.gs" . | wc -l)
+          if [ $CONSOLE_LOGS -gt 0 ]; then
+            echo "⚠️  Found $CONSOLE_LOGS console.log statements"
+            echo "   Consider using Logger.log() in Google Apps Script"
+          else
+            echo "✅ No console.log found"
+          fi
+
+          # Check for TODO/FIXME comments
+          TODO_COUNT=$(grep -r -E "TODO|FIXME" --include="*.gs" . | wc -l)
+          if [ $TODO_COUNT -gt 0 ]; then
+            echo "📝 Found $TODO_COUNT TODO/FIXME comments"
+            grep -r -n -E "TODO|FIXME" --include="*.gs" . || true
+          fi
+
+      - name: Dependency analysis
+        run: |
+          echo "📦 Analyzing dependencies..."
+
+          # Check for external service dependencies
+          if grep -r "UrlFetchApp" --include="*.gs" . > /dev/null; then
+            echo "🌐 Uses UrlFetchApp (external HTTP calls)"
+          fi
+
+          if grep -r "DriveApp" --include="*.gs" . > /dev/null; then
+            echo "💾 Uses DriveApp (Google Drive integration)"
+          fi
+
+          if grep -r "SpreadsheetApp" --include="*.gs" . > /dev/null; then
+            echo "📊 Uses SpreadsheetApp (Google Sheets integration)"
+          fi
+
+          if grep -r "CacheService" --include="*.gs" . > /dev/null; then
+            echo "⚡ Uses CacheService (caching enabled)"
+          fi
+
+      - name: Performance patterns check
+        run: |
+          echo "🚀 Checking for performance patterns..."
+
+          # Check for batch operations
+          if grep -r "getRange.*setValues" --include="*.gs" . > /dev/null; then
+            echo "✅ Uses batch setValues() operations"
+          fi
+
+          if grep -r "\.appendRow\(" --include="*.gs" . > /dev/null; then
+            echo "⚠️  Warning: Found appendRow() - consider using batch operations"
+          fi
+
+          # Check for caching
+          if grep -r "cache\." --include="*.gs" . > /dev/null; then
+            echo "✅ Implements caching"
+          fi
+
+      - name: Test coverage check
+        run: |
+          echo "🧪 Checking test coverage..."
+
+          # Find test files
+          TEST_FILES=$(find . -name "*TEST*.gs" -o -name "*test*.gs" -o -name "*Test*.gs" | wc -l)
+          echo "Test files found: $TEST_FILES"
+
+          if [ $TEST_FILES -eq 0 ]; then
+            echo "⚠️  Warning: No test files found"
+          else
+            echo "✅ Test files present"
+
+            # Count test functions
+            TEST_FUNCTIONS=$(grep -r "^function test" --include="*TEST*.gs" --include="*test*.gs" . | wc -l)
+            echo "Test functions: $TEST_FUNCTIONS"
+          fi
+
+      - name: Generate quality report
+        run: |
+          echo "# 📊 Code Quality Report" >> $GITHUB_STEP_SUMMARY
+          echo "======================" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Generated:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Code style validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Dependencies analyzed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Performance patterns checked" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Files | $(find . -name '*.gs' -type f | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Lines | $(find . -name '*.gs' -type f -exec wc -l {} \; | awk '{s+=$1} END {print s}') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Files | $(find . -name '*TEST*.gs' | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| README Files | $(find . -name 'README.md' | wc -l) |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Quality gate
+        run: |
+          echo "🚦 Quality Gate Check"
+          echo "===================="
+
+          # All previous steps passed if we got here
+          echo "✅ All quality checks passed"
+          echo ""
+          echo "Code is ready for merge!"

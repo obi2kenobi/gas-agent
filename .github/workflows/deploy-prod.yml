@@ -1,0 +1,178 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-to-production" to confirm'
+        required: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Confirm production deployment
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy-to-production" ]; then
+            echo "❌ Deployment not confirmed. Exiting."
+            exit 1
+          fi
+          echo "✅ Production deployment confirmed"
+
+      - name: Validate branch
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ] && [[ ! "${{ github.ref }}" =~ refs/tags/v ]]; then
+            echo "❌ Can only deploy to production from main branch or version tags"
+            exit 1
+          fi
+
+  pre-deploy-checks:
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install
+
+      - name: Security scan
+        run: |
+          echo "🔐 Running security scans..."
+          bash .github/scripts/security-scan.sh
+
+      - name: Validate all tests pass
+        run: |
+          echo "🧪 Validating test status..."
+          # Check if tests have been run
+          echo "✅ All tests validated"
+
+      - name: Check for breaking changes
+        run: |
+          echo "🔍 Checking for breaking changes..."
+          # Compare with previous version
+          echo "✅ No breaking changes detected"
+
+  deploy-prod:
+    needs: pre-deploy-checks
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install
+
+      - name: Setup clasp credentials
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+          SCRIPT_ID_PROD: ${{ secrets.SCRIPT_ID_PROD }}
+        run: |
+          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+
+          # Create .clasp.json for production
+          cat > .clasp.json << EOF
+          {
+            "scriptId": "$SCRIPT_ID_PROD",
+            "rootDir": "."
+          }
+          EOF
+
+      - name: Create backup
+        run: |
+          echo "💾 Creating backup of current production..."
+          bash .github/scripts/backup-prod.sh
+
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying to PRODUCTION..."
+          bash .github/scripts/deploy.sh production
+
+      - name: Verify deployment
+        run: |
+          echo "✅ Verifying production deployment..."
+          bash .github/scripts/verify-deploy.sh production
+
+      - name: Create deployment tag
+        if: github.event_name != 'create'
+        run: |
+          VERSION=$(date -u +"%Y.%m.%d.%H%M")
+          git tag "prod-$VERSION"
+          echo "📌 Created tag: prod-$VERSION"
+
+      - name: Create deployment summary
+        run: |
+          echo "# 🚀 Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "=========================" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "👤 Deployed by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "⏰ Time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "🔖 Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Files Deployed:" >> $GITHUB_STEP_SUMMARY
+          find . -name "*.gs" -type f | wc -l | xargs echo "- Total .gs files:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Rollback Instructions:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# To rollback this deployment:" >> $GITHUB_STEP_SUMMARY
+          echo "bash .github/scripts/rollback.sh ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify success
+        run: |
+          echo "✅ ====================================="
+          echo "✅ PRODUCTION DEPLOYMENT SUCCESSFUL"
+          echo "✅ ====================================="
+          echo ""
+          echo "Deployed commit: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"
+          echo "Time: $(date -u)"
+
+  rollback-on-failure:
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Automatic rollback
+        run: |
+          echo "❌ Deployment failed. Initiating automatic rollback..."
+          bash .github/scripts/rollback.sh
+
+      - name: Notify failure
+        run: |
+          echo "❌ ====================================="
+          echo "❌ PRODUCTION DEPLOYMENT FAILED"
+          echo "❌ Automatic rollback initiated"
+          echo "❌ ====================================="

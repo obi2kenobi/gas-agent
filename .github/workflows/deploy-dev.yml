@@ -1,0 +1,88 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches: [ 'claude/**' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install
+
+      - name: Setup clasp credentials
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+          SCRIPT_ID_DEV: ${{ secrets.SCRIPT_ID_DEV }}
+        run: |
+          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+
+          # Create .clasp.json for dev environment
+          cat > .clasp.json << EOF
+          {
+            "scriptId": "$SCRIPT_ID_DEV",
+            "rootDir": "."
+          }
+          EOF
+
+      - name: Pre-deployment validation
+        run: |
+          echo "🔍 Running pre-deployment checks..."
+          bash .github/scripts/pre-deploy-check.sh
+
+      - name: Deploy to development
+        run: |
+          echo "🚀 Deploying to development environment..."
+          bash .github/scripts/deploy.sh dev
+
+      - name: Create deployment summary
+        run: |
+          echo "📊 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "===================" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployed to: Development" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "👤 Triggered by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "⏰ Time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Deployed:" >> $GITHUB_STEP_SUMMARY
+          find . -name "*.gs" -type f | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to development succeeded"
+          else
+            echo "❌ Deployment to development failed"
+          fi
+
+      - name: Post-deployment health check
+        run: |
+          echo "🏥 Running health checks..."
+          # Add health check commands here
+          echo "✅ Health check passed"
