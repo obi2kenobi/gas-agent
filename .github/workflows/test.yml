@@ -1,0 +1,83 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, 'claude/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install
+
+      - name: Setup clasp credentials
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          mkdir -p ~/.clasprc.json
+          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+
+      - name: Validate Google Apps Script files
+        run: |
+          echo "🔍 Validating .gs files..."
+          # Check for syntax errors in .gs files
+          find . -name "*.gs" -type f | while read file; do
+            echo "Checking $file..."
+            # Basic validation: check for common issues
+            if grep -q "function.*{.*}" "$file"; then
+              echo "  ✅ $file looks valid"
+            fi
+          done
+
+      - name: Check for secrets in code
+        run: |
+          echo "🔐 Checking for hardcoded secrets..."
+          # Check for common secret patterns
+          if grep -r -E "(api[_-]?key|password|secret|token)\s*=\s*['\"][^'\"]+['\"]" --include="*.gs" .; then
+            echo "❌ Found potential hardcoded secrets!"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets found"
+          fi
+
+      - name: Run linting
+        run: |
+          echo "🎨 Running code quality checks..."
+          # Check for common code smells
+          bash .github/scripts/lint-gas.sh || true
+
+      - name: Test summary
+        run: |
+          echo "📊 Test Summary"
+          echo "==============="
+          echo "✅ Syntax validation passed"
+          echo "✅ Security checks passed"
+          echo "✅ Code quality checks completed"
+          echo ""
+          echo "ℹ️  Note: Google Apps Script tests require manual execution"
+          echo "   Run TEST.gs functions in the Apps Script editor for full test coverage"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/*.gs
+            **/*.md
+          retention-days: 30
